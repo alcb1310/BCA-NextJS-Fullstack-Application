@@ -1,7 +1,9 @@
 import { useState } from "react";
+import { useRouter } from "next/router";
 
 export default function Dashboard() {
     const [user, setUser] = useState<string>('')
+    const router = useRouter()
 
 	async function getProfile() {
         setUser('')
@@ -18,7 +20,7 @@ export default function Dashboard() {
         })
         const data = await res.json();
 
-        console.log(data);
+        if (typeof(data) === 'string') router.push("/")
         
     }
 
