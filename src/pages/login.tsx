@@ -1,11 +1,13 @@
 import { ChangeEvent, FormEvent, useState } from 'react';
 import { CredentialsInterface } from '../types';
+import { useRouter } from 'next/router';
 
 export default function LoginPage() {
 	const [credentials, setCredentials] = useState<CredentialsInterface>({
 		email: '',
 		password: '',
 	});
+	const router = useRouter();
 
 	function handleChange(event: ChangeEvent<HTMLInputElement>) {
 		setCredentials((prevCredentials) => ({
@@ -19,15 +21,20 @@ export default function LoginPage() {
 		const res = await fetch('/api/auth/login', {
 			method: 'POST',
 			body: JSON.stringify(credentials),
-            headers: {
-                'Content-Type': 'application/json'
-            }
+			headers: {
+				'Content-Type': 'application/json',
+			},
 		});
 
-		if (!res.ok) return
-		const data = await res.json();
+		if (!res.ok) return;
 
-		console.log(data);
+		const from = router.query.from;
+
+		let urlToGo = '/';
+
+		if (from !== undefined && typeof from === 'string') urlToGo = from;
+
+		router.push(urlToGo);
 	}
 
 	return (
