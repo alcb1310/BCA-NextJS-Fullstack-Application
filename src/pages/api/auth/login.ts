@@ -1,9 +1,12 @@
 // Next.js API route support: https://nextjs.org/docs/api-routes/introduction
-import { ErrorInterface } from '@/types';
 import type { NextApiRequest, NextApiResponse } from 'next';
+import jwt from 'jsonwebtoken';
+import { serialize } from 'cookie';
+import { getUserByEmail, validatePassword } from '@/helpers/users';
+import { ErrorInterface } from '@/types';
 
 type Data = {
-    name: string;
+    status: string;
 };
 
 interface LoginInterface {
@@ -11,7 +14,7 @@ interface LoginInterface {
     password?: string;
 }
 
-export default function handler(
+export default async function handler(
     req: NextApiRequest,
     res: NextApiResponse<Data | ErrorInterface>
 ) {
@@ -21,20 +24,49 @@ export default function handler(
         const { email, password } = body as LoginInterface;
 
         if (email === undefined)
-            return res.status(400).json({
-                errorStatus: 400,
+            return res.status(422).json({
+                errorStatus: 422,
                 errorKey: 'email',
                 errorDescription: `Need to provide an email to login`,
             });
 
         if (password === undefined)
-            return res.status(400).json({
-                errorStatus: 400,
+            return res.status(422).json({
+                errorStatus: 422,
                 errorKey: 'password',
                 errorDescription: `Need to provide an password to login`,
             });
 
-        return res.status(200).json({ name: 'John Doe' });
+        const userData = await getUserByEmail(email);
+        if (userData === null)
+            return res.status(401).json({
+                errorStatus: 401,
+                errorKey: 'credentials',
+                errorDescription: `Invalid credentials`,
+            });
+
+        if (!await validatePassword(password, userData.password))
+            return res.status(401).json({
+                errorStatus: 401,
+                errorKey: 'credentials',
+                errorDescription: `Invalid credentials`,
+            });
+
+        const token = jwt.sign({
+            email,
+            exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24 * 30) // Token valid for 30 days
+        }, process.env.SECRET as string);
+
+        const serialized = serialize('bca-token', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 60 * 60 * 24 * 1, // Cookie valid for 1 day,
+            path: '/'
+        });
+        res.setHeader('Set-Cookie', serialized);
+
+        return res.status(200).json({ status: 'login succesfull' });
     }
 
     return res.status(404).json({
