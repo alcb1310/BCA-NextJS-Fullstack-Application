@@ -1,6 +1,5 @@
-import { user } from '@prisma/client';
+import { getUserByEmail, validateCookie } from '@/helpers/users';
 import prisma from '../../../prisma/client';
-import { truncate } from 'fs';
 
 interface UserQueryInterface {
 	uuid: string;
@@ -16,7 +15,11 @@ interface CompanyQueryInterface {
 	isActive: boolean;
 }
 
-export default function Users({ users }: { users: string }) {
+type Data = {
+	users: string;
+};
+
+export default function Users({ users }: Data) {
 	const usersList = JSON.parse(users) as UserQueryInterface[];
 
 	return (
@@ -65,8 +68,16 @@ export default function Users({ users }: { users: string }) {
 	);
 }
 
-export async function getServerSideProps() {
+export async function getServerSideProps(
+	context: any
+): Promise<{ props: Data }> {
+	const email = validateCookie(context.req) as string;
+	const loggedInUser = await getUserByEmail(email);
+
 	const users: UserQueryInterface[] = await prisma.user.findMany({
+		where: {
+			companyUuid: loggedInUser?.companyUuid,
+		},
 		select: {
 			uuid: true,
 			name: true,
